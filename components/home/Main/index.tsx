@@ -1,0 +1,17 @@
+import Chat from "./Chat";
+import Menu from "./ConMenu";
+import MessageList from "./MessageList";
+import Welcome from "./Welcome";
+
+export default function Main() {
+  return (
+    <div className="flex-1 relative">
+      <main className="overflow-y-auto w-full h-full bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100">
+        <Menu />
+        {/* <Welcome /> */}
+        <MessageList />
+        <Chat />
+      </main>
+    </div>
+  );
+}
