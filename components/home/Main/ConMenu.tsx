@@ -10,7 +10,7 @@ export default function Menu() {
     state: { displayNavigation },
     dispatch,
   } = useAppcontext();
-
+  // console.log('displayNavigation:', displayNavigation);
   return (
     <Button
       icon={LuPanelLeft}

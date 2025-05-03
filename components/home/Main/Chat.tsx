@@ -3,28 +3,129 @@ import { MdRefresh } from "react-icons/md";
 import { PiLightningFill, PiStopBold } from "react-icons/pi";
 import { FiSend } from "react-icons/fi";
 import TextareaAutoSize from "react-textarea-autosize";
-import { useState } from "react";
+import { useState, useRef, use, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Message, MessageRequestBody } from "@/types/chat";
 import { useAppcontext } from "@/components/AppContext";
 import { ActionType } from "@/reducers/AppReducer";
+import {
+  useEventBusContext,
+  EventListener,
+} from "@/components/EventBusContext";
 
 export default function Chat() {
+
   const [messageText, setMessageText] = useState("");
+  const stopRef = useRef(false);
+  const chatIdRef = useRef("");
   const {
-    state: { messageList, currentModel, streamingId },
+    state: { messageList, currentModel, streamingId, selectedChat },
     dispatch,
   } = useAppcontext();
-  async function send() {
-    const message: Message = {
-      id: uuidv4(),
-      role: "user",
-      content: messageText,
+
+  useEffect(() => {
+    console.log("selectedChat change", selectedChat);
+    if (chatIdRef.current === selectedChat?.id) {
+      return;
+    }
+    stopRef.current = true;
+    chatIdRef.current = selectedChat?.id ?? "";
+    console.log("chatIdRef.current", chatIdRef.current);
+  }, [selectedChat]);
+
+  const { publish, subscribe, unsubscribe } = useEventBusContext();
+
+  useEffect(() => {
+    const callback: EventListener = (message: string) => {
+      send(message);
     };
-    const messages = messageList.concat([message]);
-    const body: MessageRequestBody = { messages, model: currentModel };
+    subscribe("createNewChat", callback);
+    return () => {
+      unsubscribe("createNewChat", callback);
+    };
+  }, []);
+
+  async function deleteMessage(id: string) {
+    const response = await fetch(`/api/message/delete?id=${id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    if (!response.ok) {
+      console.log(response.statusText);
+      return;
+    }
+    const { code } = await response.json();
+
+    return code === 0;
+  }
+
+  async function createOrUpdateMessage(message: Message) {
+    const response = await fetch("/api/message/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(message),
+    });
+    if (!response.ok) {
+      console.log(response.statusText);
+      return;
+    }
+    const { data } = await response.json();
+    publish("fetchChatList");
+
+    if (!chatIdRef.current || selectedChat?.id === "newChat") {
+      console.log("你好");
+      chatIdRef.current = data.message.chatId;
+      dispatch({
+        type: ActionType.UPDATE,
+        field: "selectedChat",
+        value: { id: chatIdRef.current },
+      });
+    }
+
+    return data.message;
+  }
+
+  async function send(content: string) {
+    const message: Message = await createOrUpdateMessage({
+      id: "",
+      role: "user",
+      content,
+      chatId: chatIdRef.current,
+    });
     dispatch({ type: ActionType.ADD_MESSAGE, message });
-    setMessageText(""); // 会触发组件刷新
+    const messages = messageList.concat([message]);
+    doSend(messages);
+  }
+
+  async function resend() {
+    const messages = [...messageList];
+    if (
+      messageList.length !== 0 &&
+      messageList[messageList.length - 1].role === "assistant"
+    ) {
+      const res = await deleteMessage(messageList[messageList.length - 1].id);
+      if (!res) {
+        console.log("delete error");
+        return;
+      }
+      dispatch({
+        type: ActionType.REMOVE_MESSAGE,
+        message: messages[messages.length - 1],
+      });
+      messages.splice(messages.length - 1, 1);
+      doSend(messages);
+    }
+  }
+
+  async function doSend(messages: Message[]) {
+    stopRef.current = false; // 没看懂，发送消息之前重置停止标志，因为切换对话时，可能没有接受消息
+    const body: MessageRequestBody = { messages, model: currentModel };
+    setMessageText("");
+    const controller = new AbortController();
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: {
@@ -40,11 +141,12 @@ export default function Chat() {
       console.log("body error");
       return;
     }
-    const responseMessage: Message = {
-      id: uuidv4(),
+    const responseMessage: Message = await createOrUpdateMessage({
+      id: "",
       role: "assistant",
       content: "",
-    };
+      chatId: chatIdRef.current,
+    });
     dispatch({ type: ActionType.ADD_MESSAGE, message: responseMessage });
     dispatch({
       type: ActionType.UPDATE,
@@ -56,6 +158,10 @@ export default function Chat() {
     let done = false;
     let content = "";
     while (!done) {
+      if (stopRef.current) {
+        controller.abort();
+        break;
+      }
       const result = await reader.read();
       done = result.done;
       const chunk = decoder.decode(result.value);
@@ -68,12 +174,26 @@ export default function Chat() {
         },
       });
     }
+    // if (selectedChat && selectedChat.id === chatIdRef.current) {
+    //   createOrUpdateMessage({
+    //     ...responseMessage,
+    //     content: content,
+    //   });
+    //   dispatch({
+    //     type: ActionType.UPDATE,
+    //     field: "streamingId",
+    //     value: "",
+    //   });
+    // }
+    createOrUpdateMessage({
+      ...responseMessage,
+      content: content,
+    });
     dispatch({
       type: ActionType.UPDATE,
       field: "streamingId",
       value: "",
     });
-    // console.log("set le" + messageText) // 此时组件还没有刷新，所以打印的还是刷新之前的
   }
 
   return (
@@ -81,11 +201,25 @@ export default function Chat() {
       <div className="w-full max-w-4xl mx-auto flex flex-col items-center px-4 space-y-4">
         {messageList.length !== 0 &&
           (streamingId !== "" ? (
-            <Button icon={PiStopBold} variant="text" className="font-medium">
+            <Button
+              icon={PiStopBold}
+              variant="text"
+              className="font-medium"
+              onClick={() => {
+                stopRef.current = true;
+              }}
+            >
               停止生成
             </Button>
           ) : (
-            <Button icon={MdRefresh} variant="text" className="font-medium">
+            <Button
+              icon={MdRefresh}
+              variant="text"
+              className="font-medium"
+              onClick={() => {
+                resend();
+              }}
+            >
               重新生成
             </Button>
           ))}
@@ -107,17 +241,19 @@ export default function Chat() {
             icon={FiSend}
             disabled={messageText.trim() === "" || streamingId !== ""}
             variant="text"
-            onClick={send}
+            onClick={() => {
+              send(messageText);
+            }}
           />
         </div>
         <footer className="text-center text-sm text-gray-700 dark:text-gray-300 px-4 pb-6">
           ©️{new Date().getFullYear()}&nbsp;{" "}
           <a
             className="font-medium py-[1px] border-b border-dotted border-black/60 hover:border-black/0 dark:border-gray-200 dark:hover:border-gray-200/0 animated-underline"
-            href="https://x.zhixing.co"
+            href="https://www.cnblogs.com/curiositywang"
             target="_blank"
           >
-            知行小课
+            CuriosityWang
           </a>
           .&nbsp;基于第三方提供的接口
         </footer>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "../styles/globals.css";
 import AppContextProvider from "@/components/AppContext";
+import EventBusContextProvider from "@/components/EventBusContext";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -24,7 +25,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body ><AppContextProvider>{children}</AppContextProvider></body>
+      <body>
+        <AppContextProvider>
+          <EventBusContextProvider>{children}</EventBusContextProvider>
+        </AppContextProvider>
+      </body>
     </html>
   );
 }

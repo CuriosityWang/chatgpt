@@ -1,11 +1,46 @@
 import { useAppcontext } from "@/components/AppContext";
 import Markdown from "@/components/common/Markdown";
 import { SiOpenai } from "react-icons/si";
+import Chat from "./Chat";
+import { ActionType } from "@/reducers/AppReducer";
+import { use, useEffect } from "react";
 
 export default function MessageList() {
   const {
-    state: { messageList, streamingId },
+    state: { messageList, streamingId, selectedChat },
+    dispatch
   } = useAppcontext();
+
+  async function getData(chatId: string) {
+    const res = await fetch(`/api/message/list?chatId=${chatId}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      console.error("获取聊天列表失败");
+      return;
+    }
+    const { data } = await res.json();
+    dispatch({
+      type: ActionType.UPDATE,
+      field: "messageList",
+      value: data.list,
+    });
+  }
+
+  useEffect(() => {
+    if (selectedChat) {
+        getData(selectedChat.id)
+    } 
+    else {
+        dispatch({
+            type: ActionType.UPDATE,
+            field: "messageList",
+            value: []
+        })
+    }
+}, [selectedChat])
+
   return (
     <div className="w-full pt-10 pb-48 dark:text-gray-300">
       <ul>

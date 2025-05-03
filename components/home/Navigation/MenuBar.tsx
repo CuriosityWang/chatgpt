@@ -6,13 +6,30 @@ import { LuPanelLeft } from "react-icons/lu";
 
 export default function Menubar() {
   const {
-    state: { displayNavigation },
+    state: { displayNavigation, selectedChat },
     dispatch,
   } = useAppcontext();
 
+  // const newChat ={
+  //   id: "newChat",
+  //   title: "newChat",
+  //   createdAt: "",
+  // };
+  
   return (
     <div className="flex space-x-3">
-      <Button icon={HiPlus} variant="outline" className="flex-1">
+      <Button
+        icon={HiPlus}
+        variant="outline"
+        className="flex-1"
+        onClick={() => {
+          dispatch({
+            type: ActionType.UPDATE,
+            field: "selectedChat",
+            value: null,
+          });
+        }}
+      >
         新建对话
       </Button>
 

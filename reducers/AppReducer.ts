@@ -1,4 +1,4 @@
-import { Message } from "@/types/chat";
+import { Chat, Message } from "@/types/chat";
 
  // 这些全都是定义一个 state，相当于一个全局变量（上下文）
 export type State = {
@@ -7,16 +7,18 @@ export type State = {
     currentModel: string;
     messageList: Message[];
     streamingId: string
+    selectedChat?: Chat
   };
   
 export enum ActionType {
     UPDATE = "UPDATE", 
     ADD_MESSAGE = "ADD_MESSAGE",
-    UPDATE_MESSAGE = "UPDATE_MESSAGE"
+    UPDATE_MESSAGE = "UPDATE_MESSAGE",
+    REMOVE_MESSAGE = "REMOVE_MESSAGE"
 }
 
 type MessageAction = {
-    type: ActionType.ADD_MESSAGE | ActionType.UPDATE_MESSAGE
+    type: ActionType.ADD_MESSAGE | ActionType.UPDATE_MESSAGE | ActionType.REMOVE_MESSAGE
     message: Message
 }
 
@@ -50,6 +52,12 @@ export function reducer(state: State, action: Action) {
                     return action.message
                 }
                 return message
+            })
+            return { ...state, messageList }
+        }
+        case ActionType.REMOVE_MESSAGE: {
+            const messageList = state.messageList.filter((message) => {
+                return message.id !== action.message.id
             })
             return { ...state, messageList }
         }
