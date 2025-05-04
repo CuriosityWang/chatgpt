@@ -84,7 +84,6 @@ export default function Chat() {
         value: { id: chatIdRef.current },
       });
     }
-    console.log("selectedChat", selectedChat);
 
     return data.message;
   }

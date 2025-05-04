@@ -2,17 +2,17 @@ import { MdOutlineTipsAndUpdates } from "react-icons/md";
 import examples from "@/data/examples.json";
 import { useMemo, useState } from "react"
 import Button from "@/components/common/Button";
-import { publicDecrypt } from "crypto";
 import { useEventBusContext } from "@/components/EventBusContext";
 
 export default function Example() {
   const [showfull, setShowFull] = useState(false);
-  const list = useMemo(() => {
-    if (showfull) {
-      return examples;
-    }
-    return examples.slice(0, 15);
-  }, [showfull]);
+  // // 写法 1
+  // const list = useMemo(() => {
+  //   return showfull ? examples : examples.slice(0, 15);
+  // }, [showfull]);
+
+  // // 写法 2
+  const list = examples.slice(0, showfull ? examples.length : 15);
   const { publish } = useEventBusContext();
 
   return (
