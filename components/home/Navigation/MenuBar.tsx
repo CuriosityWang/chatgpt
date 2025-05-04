@@ -9,12 +9,6 @@ export default function Menubar() {
     state: { displayNavigation, selectedChat },
     dispatch,
   } = useAppcontext();
-
-  // const newChat ={
-  //   id: "newChat",
-  //   title: "newChat",
-  //   createdAt: "",
-  // };
   
   return (
     <div className="flex space-x-3">

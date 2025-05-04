@@ -76,8 +76,7 @@ export default function Chat() {
     const { data } = await response.json();
     publish("fetchChatList");
 
-    if (!chatIdRef.current || selectedChat?.id === "newChat") {
-      console.log("你好");
+    if (!chatIdRef.current) {
       chatIdRef.current = data.message.chatId;
       dispatch({
         type: ActionType.UPDATE,
