@@ -76,7 +76,7 @@ export default function Chat() {
     const { data } = await response.json();
     publish("fetchChatList");
 
-    if (!chatIdRef.current) {
+    if (!chatIdRef.current && !selectedChat) {
       chatIdRef.current = data.message.chatId;
       dispatch({
         type: ActionType.UPDATE,
@@ -84,6 +84,7 @@ export default function Chat() {
         value: { id: chatIdRef.current },
       });
     }
+    console.log("selectedChat", selectedChat);
 
     return data.message;
   }
